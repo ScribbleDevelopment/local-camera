@@ -16,40 +16,106 @@
     <div class="w-full max-w-md glass rounded-2xl p-6 shadow-2xl space-y-6">
         <div class="text-center">
             <h1 class="text-2xl font-bold tracking-tight text-cyan-400">PeerCam Net</h1>
-            <p class="text-xs text-gray-400 mt-1">Select any online device to request its camera feed</p>
+            <p class="text-xs text-gray-400 mt-1">Cross-device mobile camera streaming</p>
             <div id="my-identity" class="mt-3 inline-block px-3 py-1.5 bg-cyan-950/60 border border-cyan-500/30 rounded-xl text-cyan-300 font-mono text-xs font-semibold">
                 Your ID: Loading...
             </div>
         </div>
 
-        <!-- Lobby View (Device Selector) -->
-        <div id="lobby-view" class="space-y-4">
+        <!-- Main Home / Role Selection View (Original buttons + New Device Selector button) -->
+        <div id="setup-view" class="space-y-4">
+            <p class="text-xs text-gray-400 text-center uppercase tracking-widest">Choose Your Mode</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="app.selectRole('viewer')" class="p-4 rounded-xl glass hover:bg-cyan-950/40 border border-cyan-500/30 text-center transition font-medium active:scale-95">
+                    <span class="block text-cyan-400 text-2xl mb-1">📱</span>
+                    <span class="text-xs">Watch / View</span>
+                </button>
+                <button onclick="app.selectRole('camera')" class="p-4 rounded-xl glass hover:bg-indigo-950/40 border border-indigo-500/30 text-center transition font-medium active:scale-95">
+                    <span class="block text-indigo-400 text-2xl mb-1">📷</span>
+                    <span class="text-xs">Share Camera</span>
+                </button>
+            </div>
+            <!-- New Button right by the old buttons for direct lobby/device selection -->
+            <button onclick="app.openDeviceSelector()" class="w-full py-3.5 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 rounded-xl font-semibold text-xs shadow-lg transition flex items-center justify-center space-x-2">
+                <span>🌐 Open Online Device Selector Lobby</span>
+            </button>
+        </div>
+
+        <!-- Lobby / Device Picker View -->
+        <div id="lobby-view" class="hidden space-y-4">
+            <div class="flex justify-between items-center text-xs text-gray-400">
+                <span id="my-role-badge" class="px-2.5 py-1 bg-cyan-950/60 border border-cyan-500/30 rounded-lg text-cyan-300 font-medium">Online Lobby</span>
+                <button onclick="location.reload()" class="text-red-400 hover:underline">Back Home</button>
+            </div>
+
             <div class="space-y-2">
                 <p class="text-sm font-medium text-gray-300">Available Online Devices:</p>
-                <div id="device-list" class="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    <p class="text-xs text-gray-500 text-center py-8">Scanning for online devices...</p>
+                <div id="device-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <p class="text-xs text-gray-500 text-center py-6">Scanning for online devices...</p>
                 </div>
             </div>
         </div>
 
-        <!-- Active Stream View (Viewer) -->
+        <!-- Viewer View (Device A) - Original Code Generator Screen -->
+        <div id="viewer-view" class="hidden space-y-4">
+            <div id="code-generator" class="text-center space-y-3">
+                <p class="text-sm text-gray-300">Tap below to generate your secure pairing code:</p>
+                <button onclick="app.generateSession()" class="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 rounded-xl font-semibold shadow-lg transition">Generate Pairing Code</button>
+            </div>
+            <div id="pairing-display" class="hidden text-center space-y-3">
+                <p class="text-xs text-gray-400 uppercase tracking-widest">Your Pairing Code</p>
+                <div id="code-box" class="text-4xl font-mono font-bold tracking-widest text-cyan-300 py-3 bg-black/50 rounded-xl border border-cyan-500/30">----</div>
+                <p id="connection-status" class="text-xs text-yellow-400 animate-pulse">Waiting for remote device...</p>
+            </div>
+            <div id="remote-stream-container" class="hidden space-y-3">
+                <div class="p-2 bg-green-950/40 border border-green-500/30 rounded-xl text-green-400 text-xs font-medium text-center">
+                    🟢 Connected to Remote Camera!
+                </div>
+                <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10 shadow-inner">
+                    <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+                </div>
+                <button onclick="location.reload()" class="w-full py-3 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Disconnect</button>
+            </div>
+            <button onclick="location.reload()" class="w-full py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-xs text-gray-400 transition">← Back to Menu</button>
+        </div>
+
+        <!-- Camera Provider View (Device B) - Original Code Input Screen -->
+        <div id="camera-view" class="hidden space-y-4">
+            <div id="code-input-box" class="space-y-3">
+                <p class="text-sm text-gray-300">Enter the 4-digit code shown on your viewing device:</p>
+                <input type="number" id="codeInput" pattern="[0-9]*" inputmode="numeric" maxlength="4" placeholder="1234" class="w-full text-center text-3xl font-mono tracking-widest bg-black/60 border border-white/20 rounded-xl py-3 text-white focus:outline-none focus:border-indigo-500">
+                <button onclick="app.connectWithCode()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 rounded-xl font-semibold shadow-lg transition">Connect & Stream Camera</button>
+            </div>
+            <div id="streaming-active" class="hidden text-center space-y-3">
+                <div class="p-2 bg-green-950/40 border border-green-500/30 rounded-xl text-green-400 text-xs font-medium text-center">
+                    🟢 Broadcasting camera feed live!
+                </div>
+                <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10 shadow-inner">
+                    <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
+                </div>
+                <button onclick="location.reload()" class="w-full py-3 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Stop Streaming</button>
+            </div>
+            <button onclick="location.reload()" class="w-full py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-xs text-gray-400 transition">← Back to Menu</button>
+        </div>
+
+        <!-- Active Stream View (Viewer from Lobby) -->
         <div id="viewer-active-view" class="hidden space-y-4">
             <div class="p-2 bg-green-950/40 border border-green-500/30 rounded-xl text-green-400 text-xs font-medium text-center">
                 🟢 Streaming Live Camera Feed!
             </div>
             <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10 shadow-inner">
-                <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+                <video id="remoteVideoLobby" autoplay playsinline class="w-full h-full object-cover"></video>
             </div>
             <button onclick="location.reload()" class="w-full py-3 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Disconnect</button>
         </div>
 
-        <!-- Active Stream View (Camera Provider) -->
+        <!-- Active Stream View (Camera from Lobby) -->
         <div id="camera-active-view" class="hidden space-y-4">
             <div class="p-2 bg-indigo-950/40 border border-indigo-500/30 rounded-xl text-indigo-300 text-xs font-medium text-center">
                 🟢 Broadcasting your camera to a remote viewer!
             </div>
             <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10 shadow-inner">
-                <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
+                <video id="localVideoLobby" autoplay muted playsinline class="w-full h-full object-cover"></video>
             </div>
             <button onclick="location.reload()" class="w-full py-3 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Stop Streaming</button>
         </div>
@@ -81,25 +147,40 @@
             ]
         };
 
-        // Fun, regular word combinations instead of robotic tech names
         const adjectives = ["Happy", "Brave", "Lucky", "Silly", "Cool", "Fast", "Super", "Clever", "Wild", "Sunny", "Mighty", "Quick"];
         const nouns = ["Potato", "Turtle", "Monkey", "Pancake", "Rocket", "Ninja", "Wizard", "Cookie", "Bandit", "Panda", "Shark", "Dragon"];
         const regularCodename = `${adjectives[Math.floor(Math.random() * adjectives.length)]}-${nouns[Math.floor(Math.random() * nouns.length)]}-${Math.floor(10 + Math.random() * 90)}`;
 
-        class PeerCamNetApp {
+        class PeerCamApp {
             constructor() {
                 this.deviceId = 'dev_' + regularCodename.toLowerCase();
                 this.deviceName = regularCodename;
+                this.role = null;
                 this.pc = null;
                 this.localStream = null;
+                this.sessionCode = null;
                 this.lobbyUnsubscribe = null;
                 this.callUnsubscribe = null;
-                
-                document.getElementById('my-identity').innerText = `Your Device: ${this.deviceName}`;
-                this.initApp();
+
+                document.getElementById('my-identity').innerText = `Your ID: ${this.deviceName}`;
             }
 
-            async initApp() {
+            selectRole(role) {
+                this.role = role;
+                document.getElementById('setup-view').classList.add('hidden');
+                if (role === 'viewer') {
+                    document.getElementById('viewer-view').classList.remove('hidden');
+                } else {
+                    document.getElementById('camera-view').classList.remove('hidden');
+                }
+            }
+
+            // Open the new online device selection lobby
+            async openDeviceSelector() {
+                document.getElementById('setup-view').classList.add('hidden');
+                document.getElementById('lobby-view').classList.remove('hidden');
+
+                // Register online presence
                 const deviceRef = doc(db, 'devices', this.deviceId);
                 await setDoc(deviceRef, {
                     id: this.deviceId,
@@ -109,7 +190,7 @@
                 });
 
                 this.startLobbyListener();
-                this.listenForIncomingCalls();
+                this.listenForIncomingLobbyCalls();
             }
 
             startLobbyListener() {
@@ -120,7 +201,7 @@
 
                     snapshot.forEach((docSnap) => {
                         const data = docSnap.data();
-                        if (data.id === this.deviceId) return; // Skip self
+                        if (data.id === this.deviceId) return;
 
                         foundOthers = true;
                         listEl.innerHTML += `
@@ -129,36 +210,33 @@
                                     <p class="text-sm font-semibold text-white">📱 ${data.name}</p>
                                     <p class="text-[10px] text-cyan-400">Online & Ready</p>
                                 </div>
-                                <button onclick="app.connectToDevice('${data.id}', '${data.name}')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-semibold transition active:scale-95 shadow-lg">View Camera</button>
+                                <button onclick="app.connectToDevice('${data.id}')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-semibold transition active:scale-95 shadow-lg">View Camera</button>
                             </div>
                         `;
                     });
 
                     if (!foundOthers) {
-                        listEl.innerHTML = `<p class="text-xs text-gray-500 text-center py-8">No other devices online yet. Open this link on a second device or phone!</p>`;
+                        listEl.innerHTML = `<p class="text-xs text-gray-500 text-center py-8">No other devices online yet. Open this link on another device!</p>`;
                     }
                 });
             }
 
-            async connectToDevice(targetId, targetName) {
+            async connectToDevice(targetId) {
                 if (this.lobbyUnsubscribe) this.lobbyUnsubscribe();
 
                 document.getElementById('lobby-view').classList.add('hidden');
                 document.getElementById('viewer-active-view').classList.remove('hidden');
 
                 this.pc = new RTCPeerConnection(pcConfig);
-                
                 this.pc.ontrack = (event) => {
-                    document.getElementById('remoteVideo').srcObject = event.streams[0];
+                    document.getElementById('remoteVideoLobby').srcObject = event.streams[0];
                 };
 
                 const sessionDocRef = doc(db, 'calls', this.deviceId + '_to_' + targetId);
                 const offerCandidates = [];
 
                 this.pc.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        offerCandidates.push(event.candidate.toJSON());
-                    }
+                    if (event.candidate) offerCandidates.push(event.candidate.toJSON());
                 };
 
                 const offerDescription = await this.pc.createOffer();
@@ -178,66 +256,141 @@
                     }
                     if (data?.answerCandidates) {
                         data.answerCandidates.forEach(async (candidate) => {
-                            try {
-                                await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
-                            } catch (e) { console.error(e); }
+                            try { await this.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) {}
                         });
                     }
                 });
             }
 
-            listenForIncomingCalls() {
+            listenForIncomingLobbyCalls() {
                 onSnapshot(collection(db, 'calls'), async (snapshot) => {
                     snapshot.forEach(async (docSnap) => {
                         const data = docSnap.data();
                         if (data.targetCameraId === this.deviceId && !this.pc) {
-                            
                             try {
                                 this.localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
                             } catch (err) {
-                                alert('Camera permission is required to stream when selected.');
+                                alert('Camera permission required.');
                                 return;
                             }
 
                             if (this.lobbyUnsubscribe) this.lobbyUnsubscribe();
                             document.getElementById('lobby-view').classList.add('hidden');
                             document.getElementById('camera-active-view').classList.remove('hidden');
-                            document.getElementById('localVideo').srcObject = this.localStream;
+                            document.getElementById('localVideoLobby').srcObject = this.localStream;
 
                             this.pc = new RTCPeerConnection(pcConfig);
                             this.localStream.getTracks().forEach((track) => this.pc.addTrack(track, this.localStream));
 
                             const answerCandidates = [];
                             this.pc.onicecandidate = (event) => {
-                                if (event.candidate) {
-                                    answerCandidates.push(event.candidate.toJSON());
-                                }
+                                if (event.candidate) answerCandidates.push(event.candidate.toJSON());
                             };
 
                             await this.pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                             const answerDescription = await this.pc.createAnswer();
                             await this.pc.setLocalDescription(answerDescription);
 
-                            const sessionDocRef = doc(db, 'calls', docSnap.id);
-                            await updateDoc(sessionDocRef, {
+                            await updateDoc(doc(db, 'calls', docSnap.id), {
                                 answer: { type: answerDescription.type, sdp: answerDescription.sdp },
                                 answerCandidates
                             });
 
                             if (data.offerCandidates) {
                                 data.offerCandidates.forEach(async (candidate) => {
-                                    try {
-                                        await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
-                                    } catch (e) { console.error(e); }
+                                    try { await this.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) {}
                                 });
                             }
                         }
                     });
                 });
             }
+
+            // Original 4-digit code methods
+            async generateSession() {
+                this.sessionCode = Math.floor(1000 + Math.random() * 9000).toString();
+                document.getElementById('code-generator').classList.add('hidden');
+                document.getElementById('pairing-display').classList.remove('hidden');
+                document.getElementById('code-box').innerText = this.sessionCode;
+
+                this.pc = new RTCPeerConnection(pcConfig);
+                this.pc.ontrack = (event) => {
+                    document.getElementById('pairing-display').classList.add('hidden');
+                    document.getElementById('remote-stream-container').classList.remove('hidden');
+                    document.getElementById('remoteVideo').srcObject = event.streams[0];
+                };
+
+                const sessionDocRef = doc(db, 'sessions', this.sessionCode);
+                const offerCandidates = [];
+                this.pc.onicecandidate = (event) => { if (event.candidate) offerCandidates.push(event.candidate.toJSON()); };
+
+                const offerDescription = await this.pc.createOffer();
+                await this.pc.setLocalDescription(offerDescription);
+                await setDoc(sessionDocRef, { offer: { sdp: offerDescription.sdp, type: offerDescription.type }, offerCandidates });
+
+                onSnapshot(sessionDocRef, async (snapshot) => {
+                    const data = snapshot.data();
+                    if (!this.pc.currentRemoteDescription && data?.answer) {
+                        await this.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    }
+                    if (data?.answerCandidates) {
+                        data.answerCandidates.forEach(async (candidate) => {
+                            try { await this.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) {}
+                        });
+                    }
+                });
+            }
+
+            async connectWithCode() {
+                const code = document.getElementById('codeInput').value.trim();
+                if (code.length !== 4) { alert('Enter a valid 4-digit code.'); return; }
+
+                const sessionDocRef = doc(db, 'sessions', code);
+                let sessionSnap;
+                try {
+                    const [snap, stream] = await Promise.all([
+                        getDoc(sessionDocRef),
+                        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+                    ]);
+                    sessionSnap = snap;
+                    this.localStream = stream;
+                } catch (err) {
+                    alert('Camera permission denied or invalid code.');
+                    return;
+                }
+
+                if (!sessionSnap.exists()) {
+                    alert('Session code not found.');
+                    if (this.localStream) this.localStream.getTracks().forEach(t => t.stop());
+                    return;
+                }
+
+                document.getElementById('code-input-box').classList.add('hidden');
+                document.getElementById('streaming-active').classList.remove('hidden');
+                document.getElementById('localVideo').srcObject = this.localStream;
+
+                this.pc = new RTCPeerConnection(pcConfig);
+                this.localStream.getTracks().forEach((track) => this.pc.addTrack(track, this.localStream));
+
+                const answerCandidates = [];
+                this.pc.onicecandidate = (event) => { if (event.candidate) answerCandidates.push(event.candidate.toJSON()); };
+
+                const sessionData = sessionSnap.data();
+                await this.pc.setRemoteDescription(new RTCSessionDescription(sessionData.offer));
+                const answerDescription = await this.pc.createAnswer();
+                await this.pc.setLocalDescription(answerDescription);
+
+                await updateDoc(sessionDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp }, answerCandidates });
+
+                if (sessionData.offerCandidates) {
+                    sessionData.offerCandidates.forEach(async (candidate) => {
+                        try { await this.pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) {}
+                    });
+                }
+            }
         }
 
-        window.app = new PeerCamNetApp();
+        window.app = new PeerCamApp();
     </script>
 </body>
 </html>
