@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PeerCam Connect</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0b0f19; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
+        .glass { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-md glass rounded-2xl p-6 shadow-2xl space-y-6">
+        <div class="text-center">
+            <h1 class="text-2xl font-bold tracking-tight text-cyan-400">PeerCam Connect</h1>
+            <p class="text-xs text-gray-400 mt-1">Stream camera feeds securely across local devices via pairing codes</p>
+        </div>
+
+        <!-- Mode Selection View -->
+        <div id="setup-view" class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="app.selectRole('viewer')" class="p-4 rounded-xl glass hover:bg-cyan-950/40 border border-cyan-500/30 text-center transition font-medium">
+                    <span class="block text-cyan-400 text-lg mb-1">📱</span>
+                    Watch / Receive
+                </button>
+                <button onclick="app.selectRole('camera')" class="p-4 rounded-xl glass hover:bg-indigo-950/40 border border-indigo-500/30 text-center transition font-medium">
+                    <span class="block text-indigo-400 text-lg mb-1">📷</span>
+                    Share Camera
+                </button>
+            </div>
+        </div>
+
+        <!-- Viewer View (Device A) -->
+        <div id="viewer-view" class="hidden space-y-4">
+            <div id="code-generator" class="text-center space-y-3">
+                <p class="text-sm text-gray-300">Click below to generate a secure pairing code:</p>
+                <button onclick="app.generateSession()" class="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-semibold shadow-lg transition">Generate Pairing Code</button>
+            </div>
+            <div id="pairing-display" class="hidden text-center space-y-2">
+                <p class="text-xs text-gray-400 uppercase tracking-widest">Your Code</p>
+                <div id="code-box" class="text-4xl font-mono font-bold tracking-widest text-cyan-300 py-3 bg-black/40 rounded-xl border border-cyan-500/20">----</div>
+                <p id="connection-status" class="text-xs text-yellow-400 animate-pulse">Waiting for remote device to connect...</p>
+            </div>
+            <div id="remote-stream-container" class="hidden space-y-3">
+                <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10">
+                    <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+                </div>
+                <button onclick="location.reload()" class="w-full py-2 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Disconnect</button>
+            </div>
+        </div>
+
+        <!-- Camera Provider View (Device B) -->
+        <div id="camera-view" class="hidden space-y-4">
+            <div id="code-input-box" class="space-y-3">
+                <p class="text-sm text-gray-300">Enter the 4-digit code shown on the viewing device:</p>
+                <input type="text" id="codeInput" maxlength="4" placeholder="1234" class="w-full text-center text-3xl font-mono tracking-widest bg-black/50 border border-white/20 rounded-xl py-3 text-white focus:outline-none focus:border-indigo-500 uppercase">
+                <button onclick="app.connectWithCode()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold shadow-lg transition">Connect & Stream Camera</button>
+            </div>
+            <div id="streaming-active" class="hidden text-center space-y-3">
+                <div class="p-3 bg-green-950/40 border border-green-500/30 rounded-xl text-green-400 text-sm font-medium">
+                    🟢 Camera broadcasting successfully!
+                </div>
+                <div class="relative rounded-xl overflow-hidden bg-black aspect-[3/4] border border-white/10">
+                    <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
+                </div>
+                <button onclick="location.reload()" class="w-full py-2 bg-red-600/80 hover:bg-red-600 rounded-xl text-sm font-medium transition">Stop Streaming</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Signaling Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // TODO: Replace these fields with your actual Firebase project credentials
+        const firebaseConfig = {
+            apiKey: "YOUR_FIREBASE_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+
+        const appFB = initializeApp(firebaseConfig);
+        const db = getFirestore(appFB);
+
+        const pcConfig = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+
+        class PeerCamApp {
+            constructor() {
+                this.role = null;
+                this.pc = null;
+                this.localStream = null;
+                this.sessionCode = null;
+                this.unsubscribe = null;
+            }
+
+            selectRole(role) {
+                this.role = role;
+                document.getElementById('setup-view').classList.add('hidden');
+                if (role === 'viewer') {
+                    document.getElementById('viewer-view').classList.remove('hidden');
+                } else {
+                    document.getElementById('camera-view').classList.remove('hidden');
+                }
+            }
+
+            async generateSession() {
+                this.sessionCode = Math.floor(1000 + Math.random() * 9000).toString();
+                document.getElementById('code-generator').classList.add('hidden');
+                document.getElementById('pairing-display').classList.remove('hidden');
+                document.getElementById('code-box').innerText = this.sessionCode;
+
+                this.pc = new RTCPeerConnection(pcConfig);
+                
+                this.pc.ontrack = (event) => {
+                    document.getElementById('connection-status').innerText = "Connected!";
+                    document.getElementById('pairing-display').classList.add('hidden');
+                    document.getElementById('remote-stream-container').classList.remove('hidden');
+                    document.getElementById('remoteVideo').srcObject = event.streams[0];
+                };
+
+                const sessionDocRef = doc(db, 'sessions', this.sessionCode);
+                const offerCandidates = [];
+
+                this.pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        offerCandidates.push(event.candidate.toJSON());
+                    }
+                };
+
+                const offerDescription = await this.pc.createOffer();
+                await this.pc.setLocalDescription(offerDescription);
+
+                const offer = {
+                    sdp: offerDescription.sdp,
+                    type: offerDescription.type,
+                };
+
+                await setDoc(sessionDocRef, { offer, offerCandidates });
+
+                this.unsubscribe = onSnapshot(sessionDocRef, async (snapshot) => {
+                    const data = snapshot.data();
+                    if (!this.pc.currentRemoteDescription && data?.answer) {
+                        const answerDescription = new RTCSessionDescription(data.answer);
+                        await this.pc.setRemoteDescription(answerDescription);
+                    }
+                    if (data?.answerCandidates) {
+                        data.answerCandidates.forEach(async (candidate) => {
+                            try {
+                                await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+                            } catch (e) { console.error(e); }
+                        });
+                    }
+                });
+
+                setTimeout(async () => {
+                    if (offerCandidates.length > 0) {
+                        await updateDoc(sessionDocRef, { offerCandidates });
+                    }
+                }, 1000);
+            }
+
+            async connectWithCode() {
+                const code = document.getElementById('codeInput').value.trim();
+                if (code.length !== 4) {
+                    alert('Please enter a valid 4-digit code.');
+                    return;
+                }
+
+                const sessionDocRef = doc(db, 'sessions', code);
+                const sessionSnap = await getDoc(sessionDocRef);
+
+                if (!sessionSnap.exists()) {
+                    alert('Invalid code or session expired.');
+                    return;
+                }
+
+                document.getElementById('code-input-box').classList.add('hidden');
+                document.getElementById('streaming-active').classList.remove('hidden');
+
+                try {
+                    this.localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                    document.getElementById('localVideo').srcObject = this.localStream;
+                } catch (err) {
+                    alert('Camera permission denied or unavailable.');
+                    location.reload();
+                    return;
+                }
+
+                this.pc = new RTCPeerConnection(pcConfig);
+                this.localStream.getTracks().forEach((track) => this.pc.addTrack(track, this.localStream));
+
+                const answerCandidates = [];
+                this.pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        answerCandidates.push(event.candidate.toJSON());
+                    }
+                };
+
+                const sessionData = sessionSnap.data();
+                await this.pc.setRemoteDescription(new RTCSessionDescription(sessionData.offer));
+
+                const answerDescription = await this.pc.createAnswer();
+                await this.pc.setLocalDescription(answerDescription);
+
+                const answer = {
+                    type: answerDescription.type,
+                    sdp: answerDescription.sdp
+                };
+
+                await updateDoc(sessionDocRef, { answer, answerCandidates });
+
+                if (sessionData.offerCandidates) {
+                    sessionData.offerCandidates.forEach(async (candidate) => {
+                        try {
+                            await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+                        } catch (e) { console.error(e); }
+                    });
+                }
+            }
+        }
+
+        window.app = new PeerCamApp();
+    </script>
+</body>
+</html>
